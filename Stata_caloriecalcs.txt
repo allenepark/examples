@@ -1,0 +1,300 @@
+//2016 ADDED ON MAY 9 2018
+
+clear
+global data = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Data"
+global temp = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Temp"
+global codebook = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Codebook"
+global output = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Output"
+global merge = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Output\merge"
+global clean = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Clean"
+
+**********Merging Data into a more clean format with all years listed in one data set
+*Producing several datasets
+	*CODEBOOK
+	*HOUSEHOLD CALORIE CONSUMPTION AND INCOME INFORMATION
+	*INDIVIDUAL ANTHROPOMETRICS
+		*COMBINED INDIVIDUAL AND HOUSEHOLD DATA
+	
+/*
+1. Codebook - Item Level
+2. Basic - Household Level
+3. Consumption - Item Level
+4. Nutrition - Item Level
+5. Household Nutrition - Household Level
+	
+*/
+
+
+/*
+1. Correcting errors in earlier codebooks and relabeling food lists.
+*/
+
+
+
+*******************************1. CORRECTING ERRORS IN EARLIER CODEBOOKS AND CREATING CLEAN CODEBOOK
+*Just correct it quickly in excel
+	*Taking from USDA Calorie Lists\USDA.xlsx file and pasting over code12usda and code03usda excel files
+		*noodles to 20420, green pepper to red pepper (11821 to 11333), sauerkraut to 11439
+	
+use "$codebook\code12usda", clear
+export excel "$codebook\code12usda.xlsx", replace firstrow(variables)
+use "$codebook\code03usda", clear
+export excel "$codebook\code03usda.xlsx", replace firstrow(variables)
+//changes were made here
+import excel "$codebook\code12usda.xlsx", firstrow clear
+save "$codebook\code12usda", replace
+import excel "$codebook\code03usda.xlsx", firstrow clear
+save "$codebook\code03usda", replace
+
+use "$codebook\code03usda", clear
+save "$clean\code03usda", replace
+use "$codebook\code12usda", clear
+save "$clean\code12usda", replace
+****************************TWO CODEBOOKS ARE CREATED (2003-2011) and (2012-2016)
+
+
+
+
+//use "$data\\2006\Original\Basic", clear
+
+*******************************2. CONSTRUCTING HOUSEHOLD DATA, CALORIE CONSUMPTION, INCOME DATA
+foreach i in 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016{
+	use "$data\\`i'\Original\Basic", clear
+	keep hh_code b002 oblast hsize expfact weight
+	lab var hh_code "Household code"
+	lab var b002 "1-Urban 2-Rural"
+	lab var oblast "Oblast"
+	lab var hsize "Household size"
+	lab var expfact "Household weight"
+	lab var weight "Population weight"
+	save "$clean\Basic`i'", replace
+	}
+****************************CLEAN BASIC CREATED, CAN BE MERGED TO ANY OTHER 
+	
+	
+//use "$data\\2013\Original\f3_02", clear
+******************************3. HOUSEHOLD CONSUMPTION
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016 {
+	use "$data\\`i'\Original\f3_02", clear
+	rename _all, lower
+	keep hh_code kvartal code c4 c5
+	lab var hh_code "Household code"
+	lab var kvartal "Quarter"
+	rename c4 qty
+	rename c5 unit
+	gen year = `i', before(kvartal)
+	lab var code "Consumption - Item code"
+	lab var qty "Consumption - Quantity"
+	lab var unit "Consumption - Unit"
+	save "$clean\Consum`i'", replace
+	}
+*************************CONSUMPTION COMPLETED
+
+
+*************************4. HOUSEHOLD NUTRITION (by item)
+
+foreach i in 2006 2008 2009 2010 2011 {
+	use "$data\\`i'\Original\f3_02", clear
+	rename _all, lower
+	keep hh_code kvartal code c4 c5
+	merge m:1 code using "$codebook\code03usda"
+		drop if _merge != 3
+		drop _merge
+	disp `i'
+	rename _all, lower
+	rename c4 qty
+	rename c5 unit
+	rename shrt_desc eng
+	gen calorie = .
+	replace calorie = energ_kcal * qty * 10 if unit == 1 | unit == 3
+	replace calorie = energ_kcal * qty/100 if unit == 2
+	replace calorie = energ_kcal * qty * (gmwt_1/100) if unit == 4
+	replace calorie = energ_kcal * qty/1000 if unit == 5
+	
+	save "$temp\temp`i'", replace
+	}
+	
+foreach i in 2012 2013 2014 2015 2016 {
+	use "$data\\`i'\Original\f3_02", clear
+	rename _all, lower
+	keep hh_code kvartal code c4 c5
+	merge m:1 code using "$codebook\code12usda"
+		drop if _merge != 3
+		drop _merge
+	disp `i'
+	rename _all, lower
+	rename c4 qty
+	rename c5 unit
+	rename shrt_desc eng
+	gen calorie = .
+	replace calorie = energ_kcal * qty * 10 if unit == 1 | unit == 3
+	replace calorie = energ_kcal * qty/100 if unit == 2
+	replace calorie = energ_kcal * qty * (gmwt_1/100) if unit == 4
+	replace calorie = energ_kcal * qty/1000 if unit == 5
+	
+	save "$temp\temp`i'", replace
+	}
+
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016 {
+	use "$temp\\temp`i'", clear
+	lab var hh_code "Household code"
+	lab var kvartal "Quarter"
+	lab var code "Consumption - Item code"
+	lab var qty "Consumption - Quantity"
+	lab var unit "Consumption - Unit"
+	save "$clean\Nutrition`i'", replace
+	}
+******************************************
+
+
+*************************5. NUTRITION TOTALS (by household)
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016{
+	use "$clean\Nutrition`i'", clear
+	drop water_g lipid_tot_g ash_g calcium_mg-vit_k_µg 
+	save "$temp\BasicNutrition`i'", replace
+	}
+	
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016 {
+	use "$temp\BasicNutrition`i'", clear
+	foreach var of varlist energ_kcal - cholestrl_mg{
+		replace `var' = `var' * qty * 10 if unit == 1 | unit == 3
+		replace `var' = `var' * qty/100 if unit == 2
+		replace `var' = `var' * qty * (gmwt_1/100) if unit == 4
+		replace `var' = `var' * qty/1000 if unit == 5
+		}
+	
+	collapse (sum) energ_kcal - cholestrl_mg, by (hh_code kvartal)
+	save "$temp\HouseholdTotalNutrition`i'", replace
+		}
+		
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016{
+	use "$temp\HouseholdTotalNutrition`i'", clear
+	merge m:1 hh_code using "$clean\Basic`i'"
+	drop if _merge != 3
+	drop _merge
+	foreach var of varlist energ_kcal - cholestrl_mg{
+		gen pcd_`var' = `var'/hsize/14
+		}
+	save "$clean\HouseholdNutrition`i'", replace
+		}
+**************CONSTRUCTING CALORIE TOTALS BY HDDS
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016 {
+use "$temp\BasicNutrition`i'", clear
+keep hh_code kvartal hdds calorie 
+collapse (sum) calorie, by (hh_code kvartal hdds)
+forvalues j = 1/12 {
+	egen cal`j' = sum(calorie) if hdds==`j', by(hh_code kvartal)
+	}
+collapse (sum) cal*, by(hh_code kvartal)
+merge m:1 hh_code using "$clean\Basic`i'"
+drop _merge
+
+
+foreach var of varlist calorie-cal12 {
+	replace `var' = `var'/14/hsize
+	}
+collapse (mean) calorie-weight, by(hh_code kvartal) 
+save "$temp\Calnut`i'", replace
+}
+
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016 {
+	use "$temp\Calnut`i'", clear
+	rename calorie cal0
+	local k = (`i'-2005)*4
+		forvalues j = 1/4 {
+			local m = `k' + `j'
+				forvalues n = 0/12 {
+					sum cal`n' [aweight = expfact] if kvartal == `j'
+						scalar cal`n' = r(mean)
+						}
+				matrix cal`i'_`j' = (`i',`j',cal0, cal1, cal2, cal3, cal4, cal5, cal6, cal7, cal8, cal9, cal10, cal11, cal12)
+				putexcel set "$output\calories.xlsx", sheet("New") modify
+				putexcel A`m' = matrix(cal`i'_`j')
+				}
+				}
+	*now for regions
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 2016 {
+	use "$temp\Calnut`i'", clear
+	rename calorie cal0
+	local k = (`i'-2005)*4
+		forvalues o = 1/9 {
+		forvalues j = 1/4 {
+			local m = `k' + `j'
+				forvalues n = 0/12 {
+					sum cal`n' [aweight = expfact] if kvartal == `j'
+						scalar cal`n' = r(mean)
+						}
+				matrix cal`i'_`j' = (`i',`j',cal0, cal1, cal2, cal3, cal4, cal5, cal6, cal7, cal8, cal9, cal10, cal11, cal12)
+				putexcel set "$output\calories.xlsx", sheet("New") modify
+				putexcel A`m' = matrix(cal`i'_`j')
+				}
+				}
+
+
+/*
+*put them all in one
+use "$temp\Calnut2006", clear
+forvalues i = 2008/2012 {
+	append using "$temp\Calnut`i'"
+	save "$temp\Calnutold", replace
+	}
+	
+forvalues i = 2013/2016 {
+use "$temp\Calnut`i'", clear
+replace hh_code = 400000 + hh_code
+save "$temp\Calnut`i'", replace
+}
+
+use "$temp\Calnut2013", clear
+forvalues i = 2014/2016 {
+	append using "$temp\Calnut`i'"
+	save "$temp\Calnutnew", replace
+	}
+*/
+
+******************************6. ANTHROPOMETRICS <---using "Anthropometrics.do"
+forvalues i = 2006/2016 {
+	use "$clean\Basic`i'", clear
+	merge 1:m hh_code using "$temp\anthro\\`i'a"
+	drop if _merge != 3
+	drop _merge
+	drop if wgt == .
+	drop if hgt == .
+	gen bmi = wgt/(hgt/100)^2
+	save "$clean\Anthro`i'", replace
+	}
+
+*Merge with age information
+forvalues i = 2006/2016 {
+	use "$data\\`i'\Original\f2_03", clear
+	keep pid hh_code
+	rename pid c1
+	merge hh_code c0 using "$data\\`i'\Original\f1_nal"
+	drop if _merge != 3
+	drop _merge
+	keep hh_code c1 c7
+	save "$temp\Age`i'", replace
+	}
+	
+use "$data\2012\Original\f1_nal", clear
+
+foreach i in 2008 2009 2012 2013 {
+	use "$data\\`i'\Original\f1_nal", clear
+	gen doby = year(dob)
+	gen dobm = month(dob)
+	gen dobd = day(dob)
+	tostring doby, replace
+	gen dobm1 = string(dobm, "%02.0f")
+	gen dobd1 = string(dobd, "%02.0f")
+	gen dob1 = dobm1 + "." + dobd1 + "." + doby
+	keep hh_code sex age pid dob1
+	rename dob1 dob
+	save "$temp\f1_nal`i'", replace   // creating this temp file until I am sure there are no mistakes 
+	}
+
+foreach i in 2006 2007 2010 2011 2014 2015 2016 {
+	use "$data\\`i'\Original\f1_nal", clear
+	keep hh_code sex age pid dob
+	save "$temp\f1_nal`i'", replace 
+	}
+*******************have to use this data for age for now

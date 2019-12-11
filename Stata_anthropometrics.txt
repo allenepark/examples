@@ -1,0 +1,830 @@
+clear
+global data = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Data"
+global temp = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Temp"
+global codebook = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Codebook"
+global output = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Output"
+global merge = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Output\merge"
+ssc inst distinct
+
+*Constructing stunting tables for children under 0-59 months
+
+/*
+*Key Variables
+Q2, Sec. 3
+	23 - Weight
+	24 - Height
+f1_nal
+	6 - Birth date
+	
+
+*For whatever reason we only have date information by kvartal
+*Will it be possible to compute ages?
+
+*Go to 03_01 of each year and get the information
+*Save it into its own file
+*merge all that information with birthdates
+*compare the different birthdates, use babies to see if you get non-sensical information
+
+use "$data\2014\Original\f3_01", clear
+keep hh_code date quarter
+save "$temp\anthro\2014", replace
+
+use "$data\2013\Original\f3_01", clear
+rename c2 date
+rename kvartal quarter
+keep hh_code date quarter
+save "$temp\anthro\2013", replace
+
+use "$data\2012\Original\f3_01", clear
+rename kvartal quarter
+rename c2 date
+keep hh_code date quarter
+save "$temp\anthro\2012", replace
+
+use "$data\2011\Original\f3_01", clear
+rename kvartal quarter
+rename c2 date
+keep hh_code date quarter
+save "$temp\anthro\2011", replace
+
+use "$data\2010\Original\f3_01", clear
+rename kvartal quarter
+rename c2 date
+keep hh_code date quarter
+save "$temp\anthro\2010", replace
+
+use "$data\2009\Original\f3_01", clear
+rename kvartal quarter
+rename C2 date
+keep hh_code date quarter
+save "$temp\anthro\2009", replace
+
+use "$data\2008\Original\f3_01", clear
+rename kvartal quarter
+rename C2 date
+keep hh_code date quarter
+save "$temp\anthro\2008", replace
+
+use "$data\2007\Original\f3_01", clear
+rename HH_CODE hh_code
+rename kvartal quarter
+rename c2 date
+keep hh_code date quarter
+save "$temp\anthro\2007", replace
+
+use "$data\2006\Original\f3_01", clear
+rename kvartal quarter
+rename c2 date
+keep hh_code date quarter
+save "$temp\anthro\2006", replace
+
+use "$data\2005\Original\f3_01", clear
+rename kvartal quarter
+rename c2 date
+save "$temp\anthro\2005", replace
+
+********************************************************************working with F2_03
+use "$data\2015\Original\f2_03", clear	
+keep c0 c23 c24 hh_code
+rename c0 pid
+rename c23 wgt
+rename c24 hgt
+save "$temp\anthro\2015a", replace
+
+use "$data\2014\Original\f2_03", clear	
+keep c0 c23 c24 hh_code
+
+rename c0 pid
+rename c23 wgt
+rename c24 hgt
+save "$temp\anthro\2014a", replace
+
+use "$data\2013\Original\f2_03", clear
+
+keep c0 c23 c24 hh_code
+rename c0 pid
+rename c23 wgt
+rename c24 hgt
+save "$temp\anthro\2013a", replace
+
+use "$data\2012\Original\f2_03", clear
+
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2012a", replace
+
+use "$data\2011\Original\f2_03", clear
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2011a", replace
+
+use "$data\2010\Original\f2_03", clear
+
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2010a", replace
+
+use "$data\2009\Original\f2_03", clear
+tab kvartal //all 1st quarter
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2009a", replace
+
+use "$data\2008\Original\f2_03", clear
+tab kvartal //all 1st quarter
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2008a", replace
+
+use "$data\2007\Original\f2_03", clear
+
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2007a", replace
+
+use "$data\2006\Original\f2_03", clear
+
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2006a", replace
+
+use "$data\2005\Original\f2_03", clear
+
+rename wght wgt
+rename hght hgt
+keep hh_code pid wgt hgt
+save "$temp\anthro\2005a", replace
+
+*/
+
+*******************************
+*Now that it is clear that anthro was taken in the first quarter, go back to the temp
+*files and delete every quarter that is not the first quarter
+
+
+
+forvalues i = 2005/2014 {
+	use "$temp\anthro\\`i'", clear
+	keep if quarter == 1
+	duplicates drop quarter hh_code, force
+	save "$temp\anthro\\`i'c", replace
+	}
+	*C series shows the date when anthro was taken
+	
+//use "$temp\anthro\2014c", clear
+//codebook hh_code //4999 households
+
+********************************************************************
+/*
+use "$temp\anthro\2014a", clear
+merge 1:1 hh_code pid using "$data\2014\Original\f1_nal"
+keep pid wgt hgt hh_code dob _merge c7 c2
+sum hgt if c2 == 1 & c7 > 18 & c7 < 60 //average height of working age men is around 171 cm
+sum hgt if c2 == 2 & c7 > 18 & c7 < 60 //average height of working age women is around 163 cm
+disp 171/2.54 // 5'7 for men -> data looks OK
+disp 163/2.54 // 5'4 for women -> OK
+list if _merge == 1
+
+//look at hhcode == 20146 
+use "$temp\anthro\2014a", clear
+br if hh_code == 20146
+/*
+pid	wgt	hgt	hh_code
+1	77	173	20146	1	44
+2	63	162	20146	2	40
+3	73	175	20146
+4	36	143	20146	1	12
+5	31	136	20146	1	10
+6	26	129	20146	2	9
+*/
+use "$data\2014\Original\f1_nal", clear
+keep hh_code pid c2 c7
+br if hh_code == 20146
+/*
+hh_code	pid	c2	c7
+20146	1	1	44
+20146	5	1	10
+20146	6	2	9
+20146	2	2	40
+20146	4	1	12
+*/
+//at least the anthropometric section was numbered according to member and not serially
+*/
+***************************************************************
+
+/*
+use "$temp\anthro\2005a", clear
+merge 1:1 hh_code pid using "$data\2005\Original\f1_nal"
+keep pid wgt hgt hh_code dob sex age _merge
+sum hgt if sex == 1 & age > 18 & age < 60 // 171 men
+sum hgt if sex == 2 & age > 18 & age < 60 // 161 women
+list if _merge == 2
+list if _merge == 1
+//weird, this information appears in previous versions though
+************************************************************************
+*/
+forvalues i = 2005/2014 {
+	use "$temp\anthro\\`i'a", clear
+	duplicates drop hh_code pid, force
+	merge 1:1 hh_code pid using "$data\\`i'\Original\f1_nal"
+	save "$temp\anthro\\`i'b", replace
+	}
+	
+//why are some people not showing up in anthro
+//while it is understandable there are people in master that didn't show up, it doesn't make
+//sense that there are so many people that were measured that didn't show up in the master
+
+
+**********************************************************************************************
+
+*just drop the ones that don't match
+
+forvalues i = 2005/2015 {
+	use "$temp\anthro\\`i'b", clear
+	drop if _merge != 3
+	drop _merge
+	save "$temp\anthro\\`i'd", replace
+	}
+	
+	
+//use "$temp\anthro\2014d", clear
+
+*D series, merged demographic and anthropometric information, ready for merging with interview date (C series)
+*************************************************************************************
+
+*E series, all merged together
+
+forvalues i = 2005/2014 {
+	use "$temp\anthro\\`i'd", clear
+	merge m:1 hh_code using "$temp\anthro\\`i'c"
+	drop if _merge != 3
+	drop _merge
+	save "$temp\anthro\\`i'e", replace
+	}
+//only a handful of households didn't match with the interview date 
+
+
+
+forvalues i = 2005/2014 {
+	use "$temp\anthro\\`i'e", clear
+	codebook hh_code
+	}
+	
+//use "$temp\anthro\2014e", clear
+//codebook pid 19199
+
+	
+*******************************************************************************************
+
+*We need to make sure that all dates are in the same format
+*Will take each of the E series temp files and turn the dob and date into the same format
+
+foreach i in 2005 2010 2011 2014 {
+	use "$temp\anthro\\`i'e", clear
+		gen dobm = substr(dob,4,2)
+		gen dobd = substr(dob,1,2)
+		gen doby = substr(dob,7,4)
+		destring dobm dobd doby, replace
+		gen dobb = mdy(dobm,dobd,doby)
+		gen age_m = floor((date - dobb)/(365.25/12))
+		gen age_y = floor((date - dobb)/365.25)
+	save "$temp\anthro\\`i'f", replace
+	}
+
+	
+	
+foreach i in 2006 2007{
+	use "$temp\anthro\\`i'e", clear
+		gen dobm = substr(dob,4,2)
+		gen dobd = substr(dob,1,2)
+		gen doby = substr(dob,7,4)
+		destring dobm dobd doby, replace
+		gen dobb = mdy(dobm,dobd,doby)
+		gen datm = substr(date,4,2)
+		gen datd = substr(date,1,2)
+		gen daty = substr(date,7,4)
+		destring datm datd daty, replace
+		gen datb = mdy(datm,datd,daty)
+		gen age_m = floor((datb - dobb)/(365.25/12))
+		gen age_y = floor((datb - dobb)/365.25)
+	save "$temp\anthro\\`i'f", replace
+	}
+
+foreach i in 2008 2009 2012 2013{
+	use "$temp\anthro\\`i'e", clear
+		gen age_m = floor((date - dob)/(365.25/12))
+		gen age_y = floor((date - dob)/365.25)
+	save "$temp\anthro\\`i'f", replace
+	}
+
+	*F series has everyone's birthday in months, anthrop
+	
+forvalues i = 2005/2014 {
+	use "$temp\anthro\\`i'f", clear
+	sum age_y
+	disp `i'
+	}
+	//looks good for everyone
+
+forvalues i = 2005/2014 {
+	use "$temp\anthro\\`i'f", clear
+	sum age_m if age_m < 60, d
+	disp `i'
+	} //2005 has some messed up dates
+	
+use "$temp\anthro\\2005f", clear
+	list dob date hgt if age_m < 0 //2005 is unreliable for this
+
+use "$temp\anthro\2013f", clear
+	list dob date hgt if age_m < 0 //could just be an error in input, otherwise 2013 is ok
+	list dob date hgt if age_m < 2
+		
+
+forvalues i = 2006/2014 {
+	use "$temp\anthro\\`i'f", clear
+	tabstat hgt if age_m < 13, by (age_m) stats(mean min max) //numbers make sense
+	disp `i'
+}
+
+*****how many are really far off??
+/*
+foreach i in 2013 2014 {
+	use "$temp\anthro\\`i'f", clear
+	local j = `i' - 2004
+	count if abs(c7 - age_y) > 1
+	scalar count = r(N)
+	matrix table = (`i', count)
+	putexcel A`j' = matrix(table) using "$output\ageerror.xlsx", modify
+	}
+
+foreach i in 2006 2007 2008 2009 2010 2011 2012 {
+	use "$temp\anthro\\`i'f", clear
+	local j = `i' - 2004
+	count if abs(age - age_y) > 1
+	scalar count = r(N)
+	matrix table = (`i', count)
+	putexcel A`j' = matrix(table) using "$output\ageerror.xlsx", modify
+	}
+	*/
+***********************************************************************************************
+*CALCULATING CHILD ANTHROPOMETRICS
+
+clear
+set obs 1
+gen year = "Year"
+gen stunt = "Stunting"
+gen waste = "Wasting"
+gen under = "Underweight"
+gen famil = "Household count"
+gen totpp = "Total pop."
+gen child = "Children <5"
+
+export excel year-child using "$output\anthr.xlsx", sheetmodify cell(A1)
+
+
+forvalues i = 2006/2014{
+	use "$temp\anthro\\`i'f", clear
+	local j = `i' - 2004
+	distinct hh_code
+	scalar hhct = r(ndistinct)
+	scalar cont = r(N)
+	count if age_m < 60
+	scalar kdct = r(N)
+	matrix coont = (hhct, cont, kdct)
+	version 13
+	putexcel E`j' = matrix(coont) using "$output\anthr.xlsx", modify
+}
+
+forvalues i = 2006/2014 {
+	use "$temp\anthro\\`i'f", clear
+	merge m:1 hh_code using "$data\\`i'\Original\Basic"
+		drop if _merge != 3
+		drop _merge
+	save "$temp\anthro\\`i'f", replace
+}	
+
+forvalues i = 2006/2014 {
+	use "$temp\anthro\\`i'f", clear
+	local j = `i' - 2004
+	keep if age_m < 60
+	zscore06, a(age_m) s(sex) h(hgt) w(wgt) 
+	//truncate if 5 SDs off
+	drop if abs(haz06) > 5
+	drop if abs(whz06) > 5
+	drop if abs(waz06) > 5
+	gen haz = 1 if haz06 < -2
+		replace haz = 0 if haz != 1 //stunt
+	gen whz = 1 if whz06 < -2
+		replace whz = 0 if whz != 1 //waste
+	gen waz = 1 if waz06 < -2
+		replace waz = 0 if waz != 1 //under
+	gen flag = 1 if abs(haz06) > 5
+	replace flag = 1 if abs(whz06) > 5
+	replace flag = 1 if abs(waz06) > 5
+	replace flag = 0 if flag != 1
+	sum haz [aweight = weight]
+	scalar hazz = r(mean)
+	sum whz [aweight = weight]
+	scalar whzz = r(mean)
+	sum waz [aweight = weight]
+	scalar wazz = r(mean)
+	tabstat hgt if age_m < 13, by (age_m) stats(mean min max) 
+	disp `i'
+	matrix tab = (`i', hazz, whzz, wazz)
+	version 13
+	putexcel A`j' = matrix(tab) using "$output\anthr.xlsx", modify
+	save "$temp\anthro\\`i'g", replace
+	}
+
+*G series has anthro measures and Zscores already constructed 
+
+	
+/*OUTCOME
+Year	Stunting	Wasting	Underweight
+2006	19.0%	2.5%	2.1%
+2007	21.1%	1.3%	1.4%
+2008	21.9%	1.6%	1.6%
+2009	24.2%	0.6%	0.7%
+2010	23.4%	1.4%	1.4%
+2011	24.6%	1.8%	1.0%
+2012	25.6%	2.2%	1.4%
+2013	18.9%	2.7%	2.1%
+2014	22.0%	1.6%	1.1%
+*/
+
+
+*********************************************CHECKING BRIAN'S DATA
+/*
+*Using Brian's Z-Scores
+use "$temp\brian", clear
+	drop if y < 2006
+	save "$temp\b2", replace
+
+clear
+set obs 1
+gen year = "Year"
+gen stunt = "Stunting"
+gen waste = "Wasting"
+gen under = "Underweight"
+export excel year-under using "$output\brian3.xlsx", sheetmodify cell(A1)
+	
+	
+forvalues i = 2006/2014 {
+	use "$temp\b2", clear
+	local j = `i' - 2004
+	keep if y == `i'
+	drop if abs(haz06) > 5
+	drop if abs(whz06) > 5
+	drop if abs(waz06) > 5
+	gen haz = 1 if haz06 < -2
+		replace haz = 0 if haz != 1
+	gen whz = 1 if whz06 < -2
+		replace whz = 0 if haz != 1
+	gen waz = 1 if waz06 < -2
+		replace waz = 0 if waz != 1
+	sum haz
+		scalar hazz = r(mean)
+	sum whz 
+		scalar whzz = r(mean)
+	sum waz
+		scalar wazz = r(mean)
+	matrix tab = (`i', hazz, whzz, wazz)
+putexcel A`j' = matrix(tab) using "$output\brian.xlsx", modify
+}
+
+*Calculating Z-scores myself
+use "$temp\brian", clear
+	drop if y < 2006
+	save "$temp\b3", replace
+
+clear
+set obs 1
+gen year = "Year"
+gen stunt = "Stunting"
+gen waste = "Wasting"
+gen under = "Underweight"
+export excel year-under using "$output\brian3.xlsx", sheetmodify cell(A1)
+
+	
+forvalues i = 2006/2014 {
+	use "$temp\b3", clear
+	local j = `i' - 2004
+	keep if y == `i'
+	drop haz06 - bmiz06
+	zscore06, a(age_m) s(dm_male) h(height06) w(weight06) female(0) male(1) 
+	drop if abs(haz06) > 5
+	drop if abs(whz06) > 5
+	drop if abs(waz06) > 5
+	gen haz = 1 if haz06 < -2
+		replace haz = 0 if haz != 1
+	gen whz = 1 if whz06 < -2
+		replace whz = 0 if haz != 1
+	gen waz = 1 if waz06 < -2
+		replace waz = 0 if waz != 1
+	sum haz
+		scalar hazz = r(mean)
+	sum whz 
+		scalar whzz = r(mean)
+	sum waz
+		scalar wazz = r(mean)
+	matrix tab = (`i', hazz, whzz, wazz)
+putexcel A`j' = matrix(tab) using "$output\brian3.xlsx", modify
+}
+*/
+**********************************************************************DHS dataset
+/*
+clear
+set obs 1
+gen year = "Year"
+gen stunt = "Stunting"
+gen waste = "Wasting"
+gen under = "Underweight"
+export excel year-under using "$output\dhs.xlsx", sheetmodify cell(A1)
+*/
+clear
+set obs 1
+gen yr = "DHS 2012"
+export excel yr using "$output\anthr.xlsx", sheetmodify cell (A15)
+
+
+use "$data\DHS\dhsch", clear
+count if hw1 < 60
+scalar kdcnt = r(N)
+putexcel G14 = (kdcnt) using "$output\anthr.xlsx", modify
+codebook v002
+keep b4 hw1 hw2 hw3
+rename b4 sex 
+rename hw1 age_m
+rename hw2 wgt
+rename hw3 hgt
+numlabel, add
+tab sex, missing
+tab age_m, missing
+	drop if age_m == .
+tab wgt, missing
+	drop if wgt > 9990
+tab hgt, missing
+	drop if hgt > 9990
+replace hgt = hgt/10
+replace wgt = wgt/10
+zscore06, a(age_m) s(sex) h(hgt) w(wgt) 
+drop if abs(haz06) > 5
+drop if abs(whz06) > 5
+drop if abs(waz06) > 5
+	gen haz = 1 if haz06 < -2
+		replace haz = 0 if haz != 1
+	gen whz = 1 if whz06 < -2
+		replace whz = 0 if haz != 1
+	gen waz = 1 if waz06 < -2
+		replace waz = 0 if waz != 1
+	sum haz
+		scalar hazz = r(mean)
+	sum whz 
+		scalar whzz = r(mean)
+	sum waz
+		scalar wazz = r(mean)
+	matrix tab = (hazz, whzz, wazz)
+putexcel B15 = matrix(tab) using "$output\anthr.xlsx", modify
+
+
+use "$data\dhs\dhshh", clear
+distinct hhid
+ret list
+scalar hhs = r(ndistinct)
+total hv009
+matrix ttl = r(table)
+matrix list ttl
+scalar popct = ttl[1,1]
+matrix hhct = (hhs, popct)
+matrix list hhct
+putexcel E15 = matrix(hhct) using "$output\anthr.xlsx", modify
+
+
+*/
+
+*****************************************************************************
+*Looking only at panel
+*Two panels 2003-2012 and 2013-2014
+
+
+
+
+
+
+
+***Running the same method on the MICS survey data
+*12.9 percent 
+/*According to MICS documentation it is:
+Number of children under age 5 who fall
+below
+(a) minus two standard deviations (moderate
+and severe)
+(b) below minus three standard deviations
+(severe) of the median height for age of the
+WHO standard 
+*/
+
+*NCHS standard
+use "$data\MICS\ch", clear
+drop if abs(haz) > 5
+gen stunt = 1 if haz < -2
+	replace stunt = 0 if stunt != 1
+sum stunt //9.26% unweighted
+sum stunt [aweight = chweight]  //9.32%
+
+*WHO
+use "$data\MICS\ch", clear
+drop if abs(HAZ2) > 5
+gen stunt = 1 if HAZ2 < -2
+	replace stunt = 0 if stunt != 1
+sum stunt //12.7% unweighted
+sum stunt [aweight = chweight] // 12.6
+ 
+*calculating myself
+use "$data\MICS\ch", clear
+zscore06, a(cage) s(HL4) h(AN4) w(AN3)
+drop if abs(haz06) > 5
+gen stunt = 1 if haz06 < -2
+	replace stunt = 0 if stunt != 1
+sum stunt //13.0% unweighted
+sum stunt [aweight = chweight] //12.9
+
+tabstat AN4, by (cage) stats(mean min max)
+/*
+    cage |      mean       min       max
+---------+------------------------------
+       0 |  52.75833      50.1      55.6
+       1 |  55.07536      49.6      63.1
+       2 |  57.93871        51        66
+       3 |  60.40625      50.2      66.2
+       4 |  63.52813      56.6      71.2
+       5 |  65.09167      53.2      70.7
+       6 |  66.80595      60.6      71.9
+       7 |  68.15676      61.5      74.1
+       8 |  70.08571      63.1      80.1
+       9 |    70.612        61      78.9
+      10 |  71.89789      59.3        79
+      11 |  73.41316      63.4      82.3
+      12 |  74.67143      67.2      82.6
+---------+------------------------------
+   Total |  66.31853      49.6      82.6
+*/
+
+/* This is almost identical to the same thing that I got for KIHS 2014
+   age_m |      mean       min       max
+---------+------------------------------
+       0 |        54        52        57
+       1 |  58.23077        53        64
+       2 |  60.45455        56        67
+       3 |  62.07692        60        66
+       4 |  60.72727        55        65
+       5 |  66.84615        64        70
+       6 |  67.18182        64        71
+       7 |      67.5        62        74
+       8 |        70        68        73
+       9 |     70.75        66        75
+      10 |  72.77778        69        75
+      11 |    73.625        70        75
+      12 |  74.46667        70        78
+---------+------------------------------
+   Total |  66.17808        52        78
+*/
+*******************************************************Is there a discrepancy between 12 months and over? Comparing with MICS and DHS data
+
+clear
+set obs 1
+gen cat = "MICS 2014"
+export excel cat using "$output\anthr.xlsx", sheetmodify cell(A13)
+
+use "$data\MICS\ch", clear
+zscore06, a(cage) s(HL4) h(AN4) w(AN3)
+drop if abs(haz06) > 5
+drop if abs(waz06) > 5
+drop if abs(whz06) > 5
+gen stunt = 1 if haz06 < -2
+	replace stunt = 0 if stunt != 1
+gen waste = 1 if waz06 < -2
+	replace waste = 0 if waste != 1
+gen under = 1 if whz06 < -2
+	replace under = 0 if under != 1
+sum stunt
+	scalar stnt = r(mean)
+sum waste
+	scalar wast = r(mean)
+sum under
+	scalar undr = r(mean)
+count if HH1 != .
+	scalar cont = r(N)
+matrix mics = (stnt, wast, undr)
+putexcel B13 = matrix(mics) using "$output\anthr.xlsx", modify
+putexcel G13 = (cont) using "$output\anthr.xlsx", modify
+
+/* ERROR
+gen strhh2 = string(HH2, "%02.0f")
+egen pid = concat(HH1 strhh2)
+distinct pid
+*/
+
+use "$data\MICS\hh", clear
+gen hh2 = string(HH2, "%02.0f")
+egen hhh = concat(HH1 hh2)
+count if hhh != ""
+scalar hhcn = r(N)
+total HH11
+matrix results = r(table)
+matrix list results
+scalar ppcn = results[1,1]
+matrix two = (hhcn, ppcn)
+matrix list two
+putexcel E13 = matrix(two) using "$output\anthr.xlsx", modify
+
+	
+	
+sum stunt, d //13.0% unweighted
+ci stunt
+//12.0 - 14.0
+ci stunt if cage < 13
+	//6.3%, 4.8-7.8%
+ci stunt if cage > 12
+	//15.0%, 13.8%-16.2%
+ci stunt if cage < 25
+	//10.6, 9.2-12.0
+ci stunt if cage > 24
+	//14.7, 13.3-16.1
+sum AN4, d
+ci AN4 //85.42, 85.02-85.83
+
+
+
+
+
+	
+tabstat AN4, by (cage) stats(mean min max) save
+return list
+forvalues i = 1/60 {
+	putexcel A`i' = (r(name`i')) using "$output\mohgt.xlsx", modify
+	matrix stat`i' = r(Stat`i')
+	putexcel B`i' = matrix (stat`i') using "$output\mohgt.xlsx", modify
+	}
+	
+	
+
+use "$temp\anthro\2014g", clear
+drop if flag == 1
+gen stunt = 1 if haz06 < -2
+	replace stunt = 0 if stunt != 1
+sum stunt, d
+ci stunt 
+//22.03, 20.3-23.8 
+ci stunt if age_m < 13
+	//5.8%, 3.2-8.3%
+ci stunt if age_m > 12
+	//25.0%, 23.0-26.9%
+ci stunt if age_m < 25
+	//24.3, 21.4-27.3
+ci stunt if age_m > 24
+	//20.7, 18.5-22.8
+	
+sum hgt, d
+ci hgt //86.42, 85.90-86.94
+	
+tabstat hgt, by (age_m) stats(mean min max) save
+return list
+forvalues i = 1/60 {
+	matrix stat`i' = r(Stat`i')
+	putexcel C`i' = matrix (stat`i') using "$output\mohgt.xlsx", modify
+	}
+	
+	
+****************************************************Turkmenistan Kazakhstan
+
+use "S:\Central Asia\MICS Datasets\TKM15\ch", clear
+drop if abs(HAZ2) > 5
+gen stunt = 1 if HAZ2 < -2
+	replace stunt = 0 if stunt != 1
+sum stunt [aweight = chweight] // 11.3%
+ci stunt [aweight = chweight] // 10.3-12.3
+
+use "S:\Central Asia\MICS Datasets\KAZ15\ch", clear
+drop if abs(HAZ2) > 5
+gen stunt = 1 if HAZ2 < -2
+	replace stunt = 0 if stunt != 1
+sum stunt [aweight = chweight] // 7.9% 
+ci stunt [aweight = chweight] // 7.1-8.6
+
+use "S:\Central Asia\MICS Datasets\KGZ14\ch", clear
+drop if abs(HAZ2) > 5
+gen stunt = 1 if HAZ2 < -2
+	replace stunt = 0 if stunt != 1
+sum stunt [aweight = chweight] // 12.6
+ci stunt [aweight = chweight] // 11.7-13.6
+**********************************************************************
+
+

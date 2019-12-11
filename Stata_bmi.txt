@@ -1,0 +1,414 @@
+*BMI over time
+
+clear
+global data = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Data"
+global temp = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Temp"
+global codebook = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Codebook"
+global output = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Output"
+global merge = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Output\merge"
+global clean = "U:\2017 Policy Brief on Agricultural Diversification\KIHS Analysis\Clean"
+
+use "$temp\f1_nal2006", clear
+
+foreach i in 2006 2007 2010 2011 2014 2015 {
+use "$temp\f1_nal`i'", clear
+gen hh = string(hh_code, "%06.0f")
+gen dob1 = substr(dob,1,2) + substr(dob,4,2) + substr(dob,7,4)
+gen persid = hh+"_"+dob1
+tostring sex, replace
+replace persid = persid+"_"+sex
+duplicates tag persid, gen(tag)
+tostring tag, replace
+replace persid = persid+"_"+tag
+duplicates drop
+save "$temp\id`i'", replace
+}
+
+foreach i in 2008 2009 2012 2013 {
+use "$temp\f1_nal`i'", clear
+gen hh = string(hh_code, "%06.0f")
+gen dob1 = substr(dob,4,2) + substr(dob,1,2) + substr(dob,7,4)
+gen persid = hh+"_"+dob1
+tostring sex, replace
+replace persid = persid+"_"+sex
+duplicates tag persid, gen(tag)
+tostring tag, replace
+replace persid = persid+"_"+tag
+duplicates drop
+save "$temp\id`i'", replace
+}
+
+/*
+***Generate year in BMI RUN ONCE
+forvalues i = 2006/2015{
+	use "$clean\Anthro`i'", clear
+	gen year = `i'
+	save "$clean\Anthro`i'", replace
+	}
+*/
+
+***Setting children to blanks
+forvalues i = 2006/2015 {
+	use "$temp\id`i'", clear
+	gen kid = 1 if age < 20
+		replace kid = 0 if kid == .
+	save "$temp\id`i'", replace
+		}
+forvalues i = 2006/2015 {
+	use "$clean\Anthro`i'", clear
+	duplicates drop hh_code pid, force
+	merge 1:1 hh_code pid using "$temp\id`i'"
+	drop if _merge != 3
+	drop tag _merge dob1 hh 
+	replace bmi = . if kid == 1
+	save "$temp\merge`i'", replace
+	}		
+
+*******2006-2012
+use "$temp\merge2006", clear
+	forvalues i = 2007/2012 {
+	append using "$temp\merge`i'"
+	}
+	
+sort hh_code persid year
+order persid, after(hh_code)
+order year, after(persid)
+save "$temp\BMI1", replace
+
+
+*******2013-2015
+use "$temp\merge2013", clear
+	forvalues i = 2014/2015 {
+	append using "$temp\merge`i'"
+	}
+sort hh_code persid year
+order persid, after(hh_code)
+order year, after(persid)
+save "$temp\BMI2", replace
+
+
+
+
+*********truncating extreme examples
+replace bmi = . if bmi < 5
+replace bmi = . if bmi > 100
+save "$temp\BMI1", replace
+
+***************************************************************************Merging additional data into the mix (BMI1 and BMI2)
+
+*Education
+
+*making sure education data is coded the same way
+
+*Broad education levels 3 = post secondary 2 = secondary 1 = less than secondary
+forvalues i = 2006/2015 {
+use "$data\\`i'\Original\f1_nal", clear
+gen edlevel = 3 if edu == 1 | edu == 2 
+	replace edlevel = 2 if edu == 3 | edu == 41 | edu == 5 | edu == 4
+	replace edlevel = 1 if edu == 42 | edu == 6 | edu == 7 | edu == 8 | edu == 9 | edu == 98
+	tab edlevel, missing
+save "$temp\educ`i'", replace
+}
+	
+foreach i in 2006 2007 2010 2011 2014 2015 {
+use "$temp\educ`i'", clear
+gen hh = string(hh_code, "%06.0f")
+gen dob1 = substr(dob,1,2) + substr(dob,4,2) + substr(dob,7,4)
+gen persid = hh+"_"+dob1
+tostring sex, replace
+replace persid = persid+"_"+sex
+duplicates tag persid, gen(tag)
+tostring tag, replace
+replace persid = persid+"_"+tag
+duplicates drop
+save "$temp\educ`i'", replace
+}
+
+
+use "$temp\educ2008", clear
+gen doby = year(dob)
+gen dobm = month(dob)
+gen dobd = day(dob)
+br dob*
+tostring doby, force replace
+gen dobmm = string(dobm, "%02.0f")
+gen dobdd = string(dobd, "%02.0f")
+
+foreach i in 2008 2009 2012 2013 {
+use "$temp\educ`i'", clear
+gen hh = string(hh_code, "%06.0f")
+gen doby = year(dob)
+gen dobm = month(dob)
+gen dobd = day(dob)
+tostring doby, force replace
+gen dobmm = string(dobm, "%02.0f")
+gen dobdd = string(dobd, "%02.0f")
+gen dob1 = dobdd + dobmm + doby
+gen persid = hh+"_"+dob1
+tostring sex, replace
+replace persid = persid+"_"+sex
+duplicates tag persid, gen(tag)
+tostring tag, replace
+replace persid = persid+"_"+tag
+duplicates drop
+
+save "$temp\educ`i'", replace
+}
+
+foreach i in 2008 2009 2012 2013 {
+use "$temp\educ`i'", clear
+drop doby dobm dobd dobmm dobdd dob1
+
+save "$temp\educ`i'", replace
+}
+
+***********************Household Head Education
+
+forvalues i = 2006/2011 {
+use "$temp\educ`i'", clear
+gen headed = edlevel if relation == 1
+	replace headed = 0 if relation != 1
+sort hh_code
+by hh_code: egen headedlevel = max(headed)
+drop headed 
+save "$temp\educ`i'", replace
+}
+
+forvalues i = 2013/2015 {
+use "$temp\educ`i'", clear
+rename c3 relation
+gen headed = edlevel if relation == 1
+	replace headed = 0 if relation != 1
+sort hh_code
+by hh_code: egen headedlevel = max(headed)
+drop headed 
+save "$temp\educ`i'", replace
+}
+
+forvalues i = 2012 {
+use "$temp\educ`i'", clear
+rename relationHH relation
+gen headed = edlevel if relation == 1
+	replace headed = 0 if relation != 1
+sort hh_code
+by hh_code: egen headedlevel = max(headed)
+drop headed 
+save "$temp\educ`i'", replace
+}
+
+forvalues i = 2006/2015 {
+use "$temp\educ`i'", clear
+gen year = `i'
+keep persid year edu edlevel headedlevel
+save "$temp\educ`i'", replace
+}
+
+use "$temp\educ2006", clear
+forvalues i = 2007/2015 {
+	append using "$temp\educ`i'"
+	save "$temp\educ", replace
+	}
+sort persid year
+
+
+***************************************
+*Split educ into two samples
+***********************************
+
+use "$temp\educ", clear
+keep if year < 2013
+duplicates drop persid year, force
+save "$temp\educ1", replace
+use "$temp\educ", clear
+keep if year > 2012
+duplicates drop persid year, force
+save "$temp\educ2", replace
+******************************
+
+use "$temp\BMI2", clear
+duplicates drop persid year, force 
+merge 1:1 persid year using "$temp\educ2"
+drop if _merge != 3
+drop _merge
+save "$temp\BMI2013", replace
+
+use "$temp\BMI1", clear
+duplicates drop persid year, force
+merge 1:1 persid year using "$temp\educ1"
+drop if _merge != 3
+drop _merge
+save "$temp\BMI2006", replace
+lab var edlevel "1- not secondary, 2-secondary, 3-post-secondary
+
+**************************
+*BMI 2006 and BMI 2013 are the new thangs
+*****
+use "$clean\HouseholdNutrition2006", clear
+foreach i in 2008 2009 2010 2011 2012 2013 2014 2015 {
+	append using "$clean\HouseholdNutrition`i'"
+	keep hh_code year kvartal hsize pcd*
+	save "$clean\HouseholdNutrition", replace
+		}
+
+collapse (mean) pcd*, by(hh_code year)
+sort hh_code year
+	save "$clean\AnnualNutrition", replace
+use "$clean\AnnualNutrition", clear
+	keep if year < 2013
+	save "$clean\AnnualNutrition2006", replace
+use "$clean\AnnualNutrition", clear
+	keep if year > 2012
+	save "$clean\AnnualNutrition2013", replace
+
+********************************nutrition is annualized two files annual nutrition 2006 and 2013
+
+*Merge with BMI2006 and 2013
+
+use "$temp\BMI2006", clear
+merge m:1 hh_code year using "$clean\AnnualNutrition2006"
+drop if _merge == 2
+drop _merge
+save "$temp\BMI-nutrition2006", replace
+
+use "$temp\BMI2013", clear
+drop _merge
+merge m:1 hh_code year using "$clean\AnnualNutrition2013"
+drop _merge
+save "$temp\BMI-nutrition2013", replace
+*********************************************************************
+
+*generating income figures
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015 {
+	use "$temp\f3_01`i'", clear
+	collapse (sum) c7food, by(hh_code kvartal)
+	gen food = 6.52*c7food
+	collapse (sum) food, by(hh_code)
+	gen year = `i'
+	save "$temp\food`i'", replace
+	}
+	
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015{
+	use "$temp\f5_01`i'", clear
+	collapse (sum) c6nonfood, by(hh_code kvartal)
+	rename c6nonfood nonfood
+	collapse (sum) nonfood, by(hh_code)
+	gen year = `i'
+	save "$temp\nonfood`i'", replace
+	}
+	
+foreach i in 2006 2008 2009 2010 2011 2012 2013 2014 2015{
+	use "$temp\food`i'", clear
+	merge 1:1 hh_code year using "$temp\nonfood`i'"
+	drop if _merge != 3
+	drop _merge
+	gen total = food + nonfood
+	save "$temp\income`i'", replace
+	}
+
+use "$temp\income2006", clear
+forvalues i = 2008/2012 {
+	append using "$temp\income`i'"
+	save "$temp\income2006", replace
+	}
+use "$temp\income2013", clear
+forvalues i = 2014/2015 {
+	append using "$temp\income`i'"
+	save "$temp\income2013", replace
+	}
+***************************************
+*merge BMI-nutrition-income
+
+use "$temp\BMI-nutrition2006", clear
+merge m:1 hh_code year using "$temp\income2006"
+	drop if _merge == 2
+	drop _merge
+save "$temp\BMI-nut-inc-2006", replace
+
+use "$temp\BMI-nutrition2013", clear
+merge m:1 hh_code year using "$temp\income2013"
+	drop if _merge == 2
+	drop _merge
+save "$temp\BMI-nut-inc-2013", replace
+
+*************************************
+*per cap daily income
+
+use "$temp\BMI-nut-inc-2006", clear
+	gen pcd_income = total/365/hsize
+	save "$temp\all2006", replace
+use "$temp\BMI-nut-inc-2013", clear
+	gen pcd_income = total/365/hsize
+	save "$temp\all2013", replace
+
+*****************quintiles
+
+use "$temp\all2006", clear
+
+foreach i in 2006 2008 2009 2010 2011 2012 {
+use "$temp\all2006", clear
+keep hh_code year pcd_income
+collapse (mean) pcd_income, by(hh_code year)
+keep if year == `i'
+xtile quintile = pcd_income, n(5)
+save "$temp\temp`i'", replace
+}
+foreach i in 2013 2014 2015 {
+use "$temp\all2013", clear
+keep hh_code year pcd_income
+collapse (mean) pcd_income, by(hh_code year)
+keep if year == `i'
+xtile quintile = pcd_income, n(5)
+save "$temp\temp`i'", replace
+}
+
+use "$temp\temp2006", clear
+forvalues i = 2008/2015 {
+	append using "$temp\temp`i'"
+	save "$temp\temp", replace
+	}
+
+use "$temp\temp", clear
+keep if year < 2013
+merge 1:m hh_code year using "$temp\all2006"
+drop _merge
+order quintile, after(pcd_income)
+save "$temp\all2006", replace
+
+use "$temp\temp", clear
+keep if year > 2012
+merge 1:m hh_code year using "$temp\all2013"
+drop _merge
+order quintile, after(pcd_income)
+save "$temp\all2013", replace
+
+
+gen newcode = hh_code+400000
+order newcode, after(hh_code)
+
+gen newpersid = substr(persid,8,12)
+order newpersid, after(persid)
+
+tostring newcode, force replace
+gen persid1 = newcode+"_"+newpersid
+
+drop hh_code
+rename newcode hh_code
+
+drop newpersid
+drop persid
+rename persid1 persid
+
+save "all2013new", replace
+
+
+
+use "all2013new", clear
+destring hh_code, force replace
+save "all2013new", replace
+
+use "all2006", clear
+append using "all2013new"
+
+save "allcombined", replace
+
+**********************************************
