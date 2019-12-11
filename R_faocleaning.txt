@@ -1,0 +1,37 @@
+## Changing FAOSTAT data to long format
+setwd("S:/Central Asia/Land and irrigation reform/database")
+fao <- read.csv("fao.csv", header = TRUE)
+
+## Converting column names into lowercase
+names(fao) <- tolower(names(fao))
+
+## Installing package "reshape2"
+library("reshape2", lib.loc="C:/Program Files/R/R-3.0.2/library")
+
+## Melting FAO, take 2, this time specifying ID variables (which are stable) and measure variables (which vary)
+faolong <- melt(fao, id.vars = c("country","ccode","items..","itemcode"),measure.vars = colnames(fao)[6:30], variable.name="Year")
+
+#Install the plyr package in order to be able to manipulate characters
+library("plyr", lib.loc="C:/Program Files/R/R-3.0.2/library")
+
+#Starting a new sheet
+fao2 <- faolong
+write.csv(fao2, file = "fao_long.csv")
+
+#Fixing the , (Fc) problem, for whatever reason fixed needs to be TRUE in order for exact matching to occur
+#R doesn't seem to like commas and parenthesis being searched for
+fao2[,6] <- gsub(", (Fc)", "", fao2[,6], fixed=TRUE)
+class(fao2$value)
+
+#need to turn characters into numbers or else the aggregation will be messed up
+#the problem is that all the numbers that were imported with commas (like those over 999) are turning messed up
+#getting a message that NAs introduced by coercion
+#also the ones that were blank because there were no entries are turning up NA
+fao2$value <- gsub(",","",fao2$value, fixed=TRUE)
+fao2$value <- as.numeric(fao2$value)
+
+#now making everything wide, need to add sum in order to keep the program from using length 
+faowide <- dcast(fao2, country + Year ~ items.., sum)
+
+#saving as csv file
+write.csv(faowide, file = "fao_wide.csv"

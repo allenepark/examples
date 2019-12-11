@@ -1,0 +1,46 @@
+#Trying to link GINI with nutritional outcomes
+setwd("S:/Central Asia/Land and irrigation reform/database")
+fao <- read.csv("fao_wide.csv")
+swiid <- read.csv("swiid.csv")
+
+#Change Kyrgyzstan to Kyrgyz Republic in FAO
+fao$country <- gsub("Kyrgyzstan","Kyrgyz Republic",fao$country, fixed=TRUE)
+
+#Cereals as percentage of total consumption
+#First making a new object so that the original doesn't get messed up
+faocereal <- fao
+faocereal$cerealpct <- faocereal$Cereals...Excluding.Beer....Total./faocereal$Grand.Total....Total
+
+#merging SWIID with FAO
+#need to clean up year variable, lowercase column names, and then get rid of X in front of year
+colnames(faocereal) <- tolower(colnames(faocereal))
+faocereal$year <- gsub("x","",faocereal$year, fixed=FALSE)
+swiidfao <- merge(swiid, faocereal, by = intersect(names(swiid), names(faocereal)))
+
+#Now plotting Net GINI and Cereal Percentage for the year 2005
+#Remember to save to PDF file
+
+graphics.off()  
+#Pick out Central Asia
+pdf("ploot.pdf")
+casia <- c("Kazakhstan", "Kyrgyz Republic", "Tajikistan", "Turkmenistan", "Uzbekistan")
+plot(swiidfao$cerealpct, swiidfao$gini_net, col=ifelse(swiidfao$country == "Kazakhstan", "blue",ifelse(swiidfao$country == "Kyrgyz Republic", "red", ifelse(swiidfao$country ==  "Tajikistan", "green", ifelse(swiidfao$country == "Turkmenistan", "yellow", ifelse(swiidfao$country == "Uzbekistan", "brown", "black"))))),pch=ifelse(swiidfao$country %in% casia, 19, 1), cex=0.75, main = )
+
+#Label Central Asigraphan data points
+casiatext <- swiidfao[swiidfao$country %in% casia,]
+install.packages("calibrate")
+library("calibrate")
+
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Kazakhstan"], casiatext$gini_net[casiatext$year==1992 & casiatext$country == "Kazakhstan"], "1992", col = "blue", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Kyrgyz Republic"], casiatext$gini_net[casiatext$year==1992 & casiatext$country == "Kyrgyz Republic"], "1992", col = "red", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Tajikistan"], casiatext$gini_net[casiatext$year==1992 & casiatext$country == "Tajikistan"], "1992", col = "dark green", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Turkmenistan"], casiatext$gini_net[casiatext$year==1992 & casiatext$country == "Turkmenistan"], "1992", col = "orange", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Uzbekistan"], casiatext$gini_net[casiatext$year==1992 & casiatext$country == "Uzbekistan"], "1992", col = "brown", cex=0.75, font=2)
+
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Kazakhstan"], casiatext$gini_net[casiatext$year==2005 & casiatext$country == "Kazakhstan"], "2005", col = "blue", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Kyrgyz Republic"], casiatext$gini_net[casiatext$year==2005 & casiatext$country == "Kyrgyz Republic"], "2005", col = "red", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Tajikistan"], casiatext$gini_net[casiatext$year==2005 & casiatext$country == "Tajikistan"], "2005", col = "dark green", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Turkmenistan"], casiatext$gini_net[casiatext$year==2005 & casiatext$country == "Turkmenistan"], "2005", col = "orange", cex=0.75, font=2)
+textxy(casiatext$cerealpct[casiatext$year==1992 & casiatext$country == "Uzbekistan"], casiatext$gini_net[casiatext$year==2005 & casiatext$country == "Uzbekistan"], "2005", col = "brown", cex=0.75, font=2)
+save.image(file="ploot.pdf", safe=FALSE)
+graphics.off()

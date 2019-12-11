@@ -1,0 +1,43 @@
+#Here we are going to take land allocation data from FAOSTAT and get it into digestible pieces
+#including our 29 transition countries of concern
+setwd("S:/Central Asia/Land and irrigation reform/database")
+fao <- read.csv("faoallo.csv")
+#standardize country names
+install.packages("countrycode")
+library("countrycode")
+fao$ccode <- countrycode(fao$country, "country.name", "iso3c", warn=TRUE)
+trans <- c("ALB","ARM","AZE","BLR","BIH","BGR","EST","GEO","HRV","HUN","LVA","LTU","MKD","UNK","MNE","MDA","MNG","KAZ","KGZ","TJK","UZB","POL","SVK","SVN","ROU","SRB","TKM","TUR","RUS","UKR")
+transfao <- subset(fao, fao$ccode %in% trans)
+unique(transfao$ccode)
+#now to cast
+#originally the data reads in completely long form. There is only one variable "value"
+#we are going to put the different food types in the columns
+install.packages("reshape2")
+library("reshape2")
+castfao <- dcast(transfao, ccode+year ~ crop)
+fv <- c(3,5,6,7,8,9,10,14,15,16,19,21,22,24,26,27,28,32,34,35,36,37,38,39,41,42,43,44,45,46,47,49,50,52,55,57,58,59,61,66,69,72,74,75,76,77,78,80,83,84,85,89,90,92,94,102,103,104,107,111,113,114,116,117)
+sp <- c(4,31,81,82,101,109)
+rt <- c(30,87,108)
+fd <- c(11,64,20)
+cr <- c(18,25,48,65,67,70,93,95,99,112,118)
+te <- c(12,45,53,54,56,97,105,110,115)
+pu <- c(13,17,29,33,60,79,88)
+oi <- c(23,51,62,63,68,71,73,86,8,96,98,100,106)
+castfao$Fruitsveg <- rowSums(castfao[,fv],na.rm=TRUE)
+castfao$Feed<-rowSums(castfao[,fd],na.rm=TRUE)
+castfao$Spices <- rowSums(castfao[,sp],na.rm=TRUE)
+castfao$Rootstubers <- rowSums(castfao[,rt],na.rm=TRUE)
+castfao$Cereals <- rowSums(castfao[,cr],na.rm=TRUE)
+castfao$Technical <- rowSums(castfao[,te],na.rm=TRUE)
+castfao$Pulses <- rowSums(castfao[,pu],na.rm=TRUE)
+castfao$Oilseeds <- rowSums(castfao[,oi],na.rm=TRUE)
+write.csv(castfao, "castfao.csv", append=FALSE)
+
+colnames(castfao[,fv])
+colnames(castfao[,sp])
+colnames(castfao[,rt])
+colnames(castfao[,cr])
+colnames(castfao[,te])
+colnames(castfao[,pu])
+colnames(castfao[,oi])
+

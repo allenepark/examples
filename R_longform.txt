@@ -1,0 +1,81 @@
+#Load three databases
+setwd("S:/Central Asia/Land and irrigation reform/database")
+fao <- read.csv("fao_wide.csv")
+swiid <- read.csv("swiid.csv")
+pwt <- read.csv("pwt.csv")
+usda1 <- read.csv("usda1.csv")
+usda2 <- read.csv("usda2.csv")
+wb <- read.csv("worldbank.csv")
+
+#calibrate column names
+colnames(fao)  #some are in uppercase
+colnames(fao) <- tolower(colnames(fao))
+colnames (fao)
+colnames(swiid)
+colnames (pwt)
+colnames(usda1)
+colnames(usda1) <- tolower(colnames(usda1))
+colnames(usda2)
+colnames(usda2) <- tolower(colnames(usda2))
+colnames(wb)
+colnames(wb) <- tolower(colnames(wb))
+colnames(wb)[1] <- "country"
+colnames(wb)[2] <- "ccode"
+colnames(wb)[3] <- "indicator"
+
+#Kyrgyz Republic to Kyrgyzstan
+fao$country <- gsub("Kyrgyz Republic", "Kyrgyzstan, fao$country", fixed=TRUE)
+swiid$country <- gsub("Kyrgyz Republic", "Kyrgyzstan", swiid$country, fixed=TRUE)
+pwt$country <- gsub("Kyrgyz Republic", "Kyrgyzstan", pwt$country, fixed = TRUE)
+usda1$country <- gsub("Kyrgyz Republic", "Kyrgyzstan", usda1$country, fixed = TRUE)
+usda2$country <- gsub("Kyrgyz Republic", "Kyrgyzstan", usda2$country, fixed = TRUE)
+wb$country <- gsub("Kyrgyz Republic", "Kyrgyzstan", wb$country, fixed = TRUE)
+
+
+#standardize year naumbers
+fao$year <- gsub("x","",fao$year, fixed=TRUE)
+colnames(usda1) <- gsub("x","",colnames(usda1), fixed=TRUE)
+colnames(usda2) <- gsub("x","",colnames(usda2), fixed=TRUE)
+colnames(wb) <- gsub("x","",colnames(wb), fixed=TRUE)
+
+#merge
+take1 <- merge(fao, swiid, by = intersect(names(fao),names(swiid)), all.x=TRUE, all.y=TRUE, sort=TRUE)
+names(take1)
+take2 <- merge(take1, pwt, by = intersect(names(take1), names(pwt)), all.x=TRUE, all.y=TRUE, sort=TRUE)
+colnames(take2)
+
+#Installing reshape package
+library("reshape2", lib.loc="C:/Program Files/R/R-3.0.2/library")
+
+#making USDA and WB info from wide to long
+usdaa <- melt(usda1, id.vars = c("ccode", "country"), value.name="TFP")
+colnames(usda2)[1] <- "ccode"
+usdab <- melt(usda2, id.vars = c("ccode", "country"), value.name="growth")
+usda <- merge(usdaa, usdab, by = intersect(names(usdaa), names(usdab)), all.x=TRUE, all.y=TRUE, sort=TRUE)
+colnames(usda)[3] <- "year"
+usdamelt <- melt(usda, id.vars = c("ccode","country","year"), measure.vars = colnames(usda)[4:5])
+wb2 <- melt(wb,id.vars = c("country","indicator"), measure.vars = colnames(wb)[5])
+
+wb <- wb2
+colnames(wb)[3] <- "year"
+colnames(usda)[3] <- "indicator"
+usda <-usdamelt[,2:5]
+
+
+#now merging WB and USDA with the others
+library("plyr")
+poo<-rbind.fill(wb,usda)
+colnames(poo)[2] <- "variable"
+
+#Going from wide to long
+take3 <- subset(take2, country!="" )
+take4 <- melt(take3, id.vars = c("country", "year"), measure.vars = colnames(take3[6:65]), preserve.na=TRUE)
+
+#merging poo and take4
+take5 <- rbind.fill(poo,take4)
+
+
+#save as csv
+write.csv(take5, file = "longform.xlsx")
+write.csv(take5, file = "longform.csv")
+
